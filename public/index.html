@@ -125,6 +125,13 @@ code.inline{background:rgba(255,42,42,.1);padding:2px 6px;border-radius:5px;font
 .codeblock pre{padding:14px;overflow-x:auto}
 .codeblock code{font-family:'JetBrains Mono';font-size:12.8px;line-height:1.7;color:#f0dcdc;white-space:pre}
 
+/* TYPING ANIMATION */
+.typing{display:flex;gap:4px;padding:6px 2px}
+.typing i{width:6px;height:6px;border-radius:50%;background:var(--acc);animation:bounce 1.3s infinite}
+.typing i:nth-child(2){animation-delay:.18s;background:var(--acc2)}
+.typing i:nth-child(3){animation-delay:.36s;background:var(--acc3)}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-6px);opacity:1}}
+
 .cursor{display:inline-block;width:7px;height:15px;background:var(--acc);margin-left:2px;vertical-align:-2px;animation:blink 1s steps(2) infinite;border-radius:1px}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
@@ -473,7 +480,7 @@ const S = {
   userToken: localStorage.getItem('fixo_user') || '',
   userInfo: null,
   openrouterKey: localStorage.getItem('fixo_or_key') || '',
-  model: localStorage.getItem('fixo_model') || 'openrouter/free', // Default to Auto Free Router
+  model: localStorage.getItem('fixo_model') || 'openrouter/free',
   messages: [],
   busy: false,
   trial: { allowed: true, remaining: 5, pro: false, limit: 5 }
@@ -657,7 +664,8 @@ async function sendMessage(){
   S.messages.push({role:'user', content:text});
 
   const bub = addMsg('ai','');
-  bub.innerHTML = '<span class="cursor"></span>';
+  // Thinking Animation එක මෙතන
+  bub.innerHTML = '<div class="typing"><i></i><i></i><i></i></div>';
 
   let full = '';
   let success = false;
@@ -683,15 +691,10 @@ async function sendMessage(){
       });
 
       if (res.ok) {
-        success = true;
-        if(!S.trial.pro){
-          S.trial.remaining = Math.max(0, S.trial.remaining - 1);
-          updateChip();
-        }
-
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        let streamText = '';
 
         while(true){
           const {done, value} = await reader.read();
@@ -709,6 +712,10 @@ async function sendMessage(){
               const j = JSON.parse(data);
               const delta = j.choices?.[0]?.delta?.content;
               if(delta){
+                // පළවෙනි අකුර එනකොට Thinking එක අයින් කරනවා
+                if (full === '') bub.innerHTML = '';
+                
+                streamText += delta;
                 full += delta;
                 bub.innerHTML = renderMD(full) + '<span class="cursor"></span>';
                 messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -716,6 +723,18 @@ async function sendMessage(){
             }catch(_){}
           }
         }
+
+        // Blocked නම් empty stream එකක් එනවා
+        if (streamText.trim() === '') {
+            throw new Error("Model blocked the response (empty stream)");
+        }
+
+        success = true;
+        if(!S.trial.pro){
+          S.trial.remaining = Math.max(0, S.trial.remaining - 1);
+          updateChip();
+        }
+
         bub.innerHTML = renderMD(full);
         S.messages.push({role:'assistant', content: full});
         saveHistory();
@@ -753,13 +772,23 @@ async function sendMessage(){
         break;
       }
     }catch(e){
+      // Model එක block කළොත් ඊළඟ එකට මාරු වෙනවා
+      if (attempts < freeFallbacks.length - 1) {
+          attempts++;
+          currentModel = freeFallbacks[attempts];
+          toast('Model blocked or failed. Switching fallback...');
+          bub.innerHTML = '<span style="color:#ffc107">Switching to fallback model ('+currentModel.split('/').pop()+')...</span>';
+          full = ''; // reset
+          continue;
+      }
+      
       bub.innerHTML = '<span style="color:#ff5c5c">Connection error: '+esc(e.message)+'</span>';
       break;
     }
   }
 
   if (!success && attempts >= freeFallbacks.length) {
-      bub.innerHTML = '<span style="color:#ff5c5c">All Free Models failed.</span><br><span style="color:#a88888;font-size:13px">OpenRouter Free tier might be rate limited. Try again later or add $10 credits.</span>';
+      bub.innerHTML = '<span style="color:#ff5c5c">All Free Models failed or blocked.</span><br><span style="color:#a88888;font-size:13px">OpenRouter Free tier might be blocking this content. Try again later or add $10 credits to use paid models.</span>';
   }
 
   if (!success) S.messages.pop();
@@ -903,7 +932,6 @@ document.getElementById('brandLogo').addEventListener('click', ()=>{
 
 /* ---------- BOOT ---------- */
 (async function boot(){
-  // Loading screen timeout
   setTimeout(() => {
     const l = document.getElementById('loader');
     if (l) l.classList.add('hidden');
@@ -985,4 +1013,4 @@ document.getElementById('brandLogo').addEventListener('click', ()=>{
 })();
 </script>
 </body>
-</html>
+  </html>
