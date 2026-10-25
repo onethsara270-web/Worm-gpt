@@ -140,7 +140,7 @@ app.post('/api/trial/check', async (req, res) => {
   res.json({ ...t, pro: false, limit: FREE_TRIAL_LIMIT });
 });
 
-/* ============ CHAT PROXY (GROQ API) ============ */
+/* ============ CHAT PROXY (GROQ API AUTO-ROUTING) ============ */
 app.post('/api/chat', async (req, res) => {
   const { sessionId, messages } = req.body;
   if (!sessionId || !Array.isArray(messages)) {
@@ -176,37 +176,57 @@ app.post('/api/chat', async (req, res) => {
 
   track({ type: 'message', sessionId, ip: getIP(req), userAgent: req.headers['user-agent'], meta: { pro: isPro } });
 
-  // Call Groq (Using Free Tier Model)
-  let orRes;
-  try {
-    orRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + groqKey,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile', // Fast & Free Groq Model
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT }, 
-          ...messages,
-          { role: 'assistant', content: PREFILL } 
-        ],
-        stream: true,
-        temperature: 0.85
-      })
-    });
-  } catch (e) {
-    if (!isPro) await bumpTrial(sessionId, getIP(req), -1);
-    return res.status(502).json({ error: 'upstream_unreachable', detail: e.message });
+  // GROQ AUTO ROUTING (Tries 70b -> 8b -> gpt-oss)
+  const groqModels = [
+    'llama-3.3-70b-versatile', 
+    'llama-3.1-8b-instant', 
+    'openai/gpt-oss-120b'
+  ];
+
+  let orRes = null;
+  let lastErr = "";
+
+  for (let i = 0; i < groqModels.length; i++) {
+    const currentModel = groqModels[i];
+    try {
+      orRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + groqKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: currentModel,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT }, 
+            ...messages,
+            { role: 'assistant', content: PREFILL } 
+          ],
+          stream: true,
+          temperature: 0.85
+        })
+      });
+
+      if (orRes.ok) {
+        break; // Success! Exit the loop
+      } else {
+        const errTxt = await orRes.text();
+        lastErr = errTxt;
+        console.log(`[Groq] Model ${currentModel} failed, trying next...`);
+      }
+    } catch (e) {
+      lastErr = e.message;
+      console.log(`[Groq] Connection error with ${currentModel}, trying next...`);
+    }
   }
 
-  if (!orRes.ok) {
-    if (!isPro) await bumpTrial(sessionId, getIP(req), -1);
-    const errTxt = await orRes.text();
-    return res.status(500).json({ error: 'groq_error', detail: errTxt });
+  // If all models failed
+  if (!orRes || !orRes.ok) {
+    if (!isPro) await bumpTrial(sessionId, getIP(req), -1); // refund trial usage
+    return res.status(500).json({ error: 'groq_error', detail: lastErr });
   }
 
+  // Stream success response
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
