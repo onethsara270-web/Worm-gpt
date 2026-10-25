@@ -47,11 +47,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;font-s
 .section-head h2{font-family:'Space Grotesk';font-size:16px;font-weight:600;letter-spacing:.3px}
 .section-head .line{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,42,42,.3),transparent)}
 
-.settings-box{border:1px solid rgba(255,42,42,.2);border-radius:14px;padding:20px;background:rgba(255,42,42,.03);margin-bottom:24px;display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
-.settings-box .field-row{flex:1;min-width:250px;margin:0}
+.settings-box{border:1px solid rgba(255,42,42,.2);border-radius:14px;padding:20px;background:rgba(255,42,42,.03);margin-bottom:24px}
+.settings-box .field-row{margin-bottom:16px}
 .settings-box label{display:block;font-size:12px;font-weight:600;color:var(--mut);margin-bottom:6px}
-.settings-box input{width:100%;padding:10px 14px;border-radius:8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,42,42,.3);color:var(--txt);outline:none}
-.settings-box input:focus{border-color:var(--acc)}
+.settings-box textarea{width:100%;padding:12px 14px;border-radius:8px;background:rgba(0,0,0,.5);border:1px solid rgba(255,42,42,.3);color:var(--txt);outline:none;font-family:'JetBrains Mono';font-size:12px;resize:vertical;min-height:120px;line-height:1.5}
+.settings-box textarea:focus{border-color:var(--acc);box-shadow:0 0 0 3px rgba(255,42,42,.1)}
 .settings-box button{padding:10px 18px;border-radius:8px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc3));color:#fff;font-weight:600;transition:all .2s}
 .settings-box button:hover{box-shadow:0 8px 20px rgba(255,42,42,.4)}
 
@@ -143,10 +143,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Inter',sans-serif;font-s
     <div class="section-head"><h2>Settings</h2><div class="line"></div></div>
     <div class="settings-box">
       <div class="field-row">
-        <label>Groq API Key</label>
-        <input id="groqKeyInput" type="password" placeholder="gsk_..." autocomplete="off" spellcheck="false">
+        <label>OpenRouter API Keys (Paste one key per line)</label>
+        <textarea id="keysInput" placeholder="sk-or-v1-...&#10;sk-or-v1-...&#10;sk-or-v1-..."></textarea>
       </div>
-      <button onclick="saveGroqKey()">Save Key</button>
+      <button onclick="saveKeys()">Save Keys</button>
     </div>
 
     <div class="section-head"><h2>Overview</h2><div class="line"></div></div>
@@ -244,22 +244,32 @@ async function loadSettings(){
     const res = await fetch(API + '/api/admin/settings', {headers:{'x-admin-token':adminToken}});
     if(res.ok){
       const j = await res.json();
-      $('groqKeyInput').value = j.groqKey || '';
+      if (Array.isArray(j.orKeys)) {
+        $('keysInput').value = j.orKeys.join('\n');
+      }
     }
   }catch(e){}
 }
-async function saveGroqKey(){
-  const key = $('groqKeyInput').value.trim();
-  if(!key.startsWith('gsk_')){ toast('Must start with gsk_'); return; }
+async function saveKeys(){
+  const raw = $('keysInput').value;
+  // Split by newline or comma, trim, remove empty
+  const keys = raw.split(/[\n,]+/).map(k => k.trim()).filter(k => k.length > 0);
+  
+  if(keys.length === 0){ toast('Paste at least one key'); return; }
+  
+  // Basic validation
+  const invalid = keys.find(k => !k.startsWith('sk-or-'));
+  if (invalid) { toast('Invalid key format: ' + invalid.slice(0, 10)); return; }
+
   try{
     const res = await fetch(API + '/api/admin/settings', {
       method:'POST',
       headers:{'Content-Type':'application/json','x-admin-token':adminToken},
-      body: JSON.stringify({groqKey: key})
+      body: JSON.stringify({orKeys: keys})
     });
     const j = await res.json();
     if(!res.ok){ toast(j.error || 'Failed'); return; }
-    toast('Groq Key saved successfully!');
+    toast('Saved ' + j.count + ' OpenRouter keys successfully!');
   }catch(e){ toast('Error: '+e.message); }
 }
 
@@ -449,4 +459,4 @@ setInterval(()=>{
 }, 30000);
 </script>
 </body>
-  </html>
+      </html>
