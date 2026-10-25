@@ -262,7 +262,7 @@ footer .fl a:hover{color:var(--acc2)}
 
       <div class="chat-shell">
         <div class="chat-top">
-          <div class="model-name">Llama 3.3 70B</div>
+          <div class="model-name">Hermes 3 (405B)</div>
           <button class="ghost-btn" onclick="newChat()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             New chat
@@ -276,7 +276,7 @@ footer .fl a:hover{color:var(--acc2)}
               <svg viewBox="0 0 24 24"><path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a.993.993 0 00-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z"/></svg>
             </button>
           </div>
-          <div class="hint">Enter to send · Shift+Enter for newline · Powered by Groq</div>
+          <div class="hint">Enter to send · Shift+Enter for newline · Powered by OpenRouter</div>
         </div>
       </div>
     </div>
@@ -291,7 +291,7 @@ footer .fl a:hover{color:var(--acc2)}
       </div>
       <div class="card" style="margin-bottom:26px">
         <h3>What is Fixo AI?</h3>
-        <p>Fixo AI is an uncensored AI interface powered by Groq. You just login and start chatting — no API keys, no subscriptions, no lectures.</p>
+        <p>Fixo AI is an uncensored AI interface powered by OpenRouter. You just login and start chatting — no API keys, no subscriptions, no lectures.</p>
         <p style="margin-top:12px">Free trial gives you 5 messages to try it out. Pro unlocks the unlimited message quota.</p>
       </div>
       <div class="section-title">Capabilities</div>
@@ -319,7 +319,7 @@ footer .fl a:hover{color:var(--acc2)}
     <div class="wrap">
       <div class="page-head">
         <h1>Choose your <span>plan</span></h1>
-        <p>Free trial to try it. Pro to keep it. You always bring your own Groq key — we never charge for API usage.</p>
+        <p>Free trial to try it. Pro to keep it. You always bring your own OpenRouter key — we never charge for API usage.</p>
       </div>
 
       <div class="pricing-grid">
@@ -634,8 +634,8 @@ async function sendMessage(){
       let errObj = null;
       try { errObj = JSON.parse(textRes); } catch(e){}
       
-      if(res.status === 400 && (errObj?.error === 'groq_key_missing' || textRes.includes("groq_key_missing"))) {
-          bub.innerHTML = '<span style="color:#ff5c5c">Groq API Key missing.</span><br><span style="color:#a88888;font-size:13px">Admin needs to configure the API key in the Admin Panel.</span>';
+      if(res.status === 400 && (errObj?.error === 'keys_missing' || textRes.includes("keys_missing"))) {
+          bub.innerHTML = '<span style="color:#ff5c5c">API Keys missing.</span><br><span style="color:#a88888;font-size:13px">Admin needs to configure the OpenRouter API keys in the Admin Panel.</span>';
       }
       else if(res.status === 403 && (errObj?.error === 'trial_exhausted' || textRes.includes("trial_exhausted"))) {
           S.trial.remaining = 0; S.trial.allowed = false; updateChip();
@@ -844,4 +844,4 @@ document.getElementById('brandLogo').addEventListener('click', ()=>{
 })();
 </script>
 </body>
-</html>
+  </html>
