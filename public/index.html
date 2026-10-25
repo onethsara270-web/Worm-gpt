@@ -94,7 +94,7 @@ main{position:relative;z-index:2;padding-top:66px;min-height:100vh}
 .msg.ai .avatar{background:linear-gradient(135deg,var(--acc),var(--acc3));color:#0a0505;box-shadow:0 0 16px rgba(255,42,42,.4)}
 .msg.ai .avatar svg{width:18px;height:18px;fill:#0a0505}
 .msg.user .avatar{background:rgba(255,255,255,.1);color:var(--txt);border:1px solid var(--stroke2)}
-.bubble{padding:12px 16px;border-radius:16px;font-size:14.5px;line-height:1.72;max-width:min(100%,720px);overflow-wrap:anywhere}
+.bubble{padding:12px 16px;border-radius:16px;font-size:14.5px;line-height:1.72;max-width:min(100%,720px);overflow-wrap:anywhere;min-height:44px}
 .msg.ai .bubble{background:rgba(255,42,42,.05);border:1px solid rgba(255,42,42,.15);border-top-left-radius:5px}
 .msg.user .bubble{background:linear-gradient(135deg,rgba(255,42,42,.2),rgba(139,0,0,.15));border:1px solid rgba(255,42,42,.35);border-top-right-radius:5px}
 .bubble h1,.bubble h2,.bubble h3{font-family:'Space Grotesk';margin:14px 0 8px;line-height:1.3}
@@ -262,7 +262,7 @@ footer .fl a:hover{color:var(--acc2)}
 
       <div class="chat-shell">
         <div class="chat-top">
-          <div class="model-name">Hermes 3 (405B)</div>
+          <div class="model-name">Auto Router</div>
           <button class="ghost-btn" onclick="newChat()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
             New chat
@@ -626,9 +626,16 @@ async function sendMessage(){
           }catch(_){}
         }
       }
-      bub.innerHTML = renderMD(full);
-      S.messages.push({role:'assistant', content: full});
-      saveHistory();
+      
+      if (!full || full.trim() === "") {
+          bub.innerHTML = '<span style="color:#ff5c5c">Empty response from AI.</span><br><span style="color:#a88888;font-size:13px">The model failed to generate text. Please try again.</span>';
+          S.messages.pop(); // remove the user msg since it failed
+      } else {
+          bub.innerHTML = renderMD(full);
+          S.messages.push({role:'assistant', content: full});
+          saveHistory();
+      }
+      
     } else {
       const textRes = await res.text();
       let errObj = null;
@@ -844,4 +851,4 @@ document.getElementById('brandLogo').addEventListener('click', ()=>{
 })();
 </script>
 </body>
-  </html>
+              </html>
